@@ -17,6 +17,7 @@ genres = list(
     sorted(set([genre for genres in movies.genres.unique() for genre in genres.split("|")]))
 )
 S_top_30 = pd.read_csv('s30.csv')
+most_popular = pd.read_csv("most_popular.csv")
 num_movie = S_top_30.shape[0]
 def get_displayed_movies():
     return movies.head(100)
@@ -30,7 +31,7 @@ def get_recommended_movies(new_user_ratings):
             new_user[index] = rating
     top10 = myIBCF(new_user)
     column_mapping = [col[1:] for col in top10 if col.startswith('m')]
-    print(column_mapping)
+    #print(column_mapping)
     return movies.iloc[column_mapping]
 def get_popular_movies(genre: str):
     if genre == genres[1]:
@@ -45,10 +46,17 @@ def myIBCF(newuser):
     for i in movies_without_rating:
         right_sum = np.dot(newuser[movies_with_rating],smr_zero[i,movies_with_rating])
         left_sum = sum(smr_zero[i,movies_with_rating])
-        score = (1/left_sum)*right_sum
+        score = np.nan
+        if left_sum != 0:
+            score = (1/left_sum)*right_sum
         newRanks[i] = score
     non_nan_indices = np.where(~np.isnan(newRanks))[0]  # Find indices of non-NA values
+    non_nan_count = np.sum(~np.isnan(newRanks))
     sorted_indices = np.argsort(newRanks[non_nan_indices])[::-1]
-    top_10_indices = non_nan_indices[sorted_indices][:10]  # Get top 10 indices
+    top_x = non_nan_indices[sorted_indices][: min(non_nan_count, 10)]
+    filtered_most_popular = [item for index, item in enumerate(most_popular) if index not in top_x]
+    remaining = filtered_most_popular[:10-min(non_nan_count,10)]
     #print(newRanks[top_10_indices])
-    return S_top_30.columns[top_10_indices]
+    top_x = S_top_30.columns[top_x]
+    result = top_x.append(remaining) if top_x.any() else remaining
+    return result
